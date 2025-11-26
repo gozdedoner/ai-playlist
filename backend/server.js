@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-dotenv.config(); // <-- BU EN ÜSTTE OLACAK
+dotenv.config();
 
 import tokenRoute from "./routes/tokenRoute.js";
 import aiRoute from "./routes/aiRoute.js";
@@ -15,6 +15,5 @@ app.use(express.json());
 app.use("/api/token", tokenRoute);
 app.use("/api/ai", aiRoute);
 
-app.listen(process.env.PORT, () => {
-  console.log("Backend çalışıyor:", process.env.PORT);
-});
+// ❗ Vercel serverless — app.listen YOK!
+export default app;
