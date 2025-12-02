@@ -3,6 +3,6 @@ import { generatePlaylist } from "../controllers/aiController.js";
 
 const router = express.Router();
 
-router.post("/generate", generatePlaylist);
+router.post("/playlist", generatePlaylist);
 
 export default router;

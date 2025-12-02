@@ -1,0 +1,15 @@
+export const MOODS = [
+  "Happy",
+  "Sad",
+  "Energetic",
+  "Relaxed",
+  "Romantic",
+  "Melancholic",
+  "Motivated",
+  "Chill",
+  "Angry",
+  "Nostalgic",
+  "Dreamy",
+  "Dark Neon",
+  "Focus",
+];

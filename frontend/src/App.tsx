@@ -1,27 +1,29 @@
 import { Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+
 import FavoritesPage from "./pages/FavoritesPage";
 
 import { getSpotifyToken } from "./services/getToken";
 import { searchSongs } from "./services/searchSongs";
+import { generateAIPlaylist } from "./services/generateAIPlaylist";
 
 import SongCard from "./components/SongCard";
 import ThemeToggle from "./components/ThemeToggle";
 import AIPlaylistModal from "./components/AIPlaylistModal";
-
 import MiniPlayer from "./components/MiniPlayer";
 import FullPlayerModal from "./components/FullPlayerModal";
+import SkeletonCard from "./components/SkeletonCard";
+import WaveAnimation from "./components/WaveAnimation";
+import HomeGlassPanel from "./components/HomeGlassPanel";
+import AICoverModal from "./components/AICoverModal";
 
 import { ThemeProvider } from "./context/ThemeContext";
 import { PlayerProvider } from "./context/PlayerContext";
 
-import SkeletonCard from "./components/SkeletonCard";
-import WaveAnimation from "./components/WaveAnimation";
-
 import "./index.css";
-import { useEffect, useState } from "react";
 
 export default function App() {
-  const navigate = useNavigate(); // ⭐ EKLENDİ
+  const navigate = useNavigate();
 
   const [tokenStatus, setTokenStatus] = useState<string>("Bekleniyor...");
   const [query, setQuery] = useState("");
@@ -30,9 +32,10 @@ export default function App() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
 
-  // ⭐ Player modal için gerekli state
   const [fullPlayerOpen, setFullPlayerOpen] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
 
+  // ✔ Spotify Token Fetch
   useEffect(() => {
     async function fetchToken() {
       const token = await getSpotifyToken();
@@ -46,11 +49,13 @@ export default function App() {
     fetchToken();
   }, []);
 
+  // ✔ Favorileri yükle
   useEffect(() => {
     const saved = localStorage.getItem("favorites");
     if (saved) setFavorites(JSON.parse(saved));
   }, []);
 
+  // ✔ Favori Ekle/Çıkar
   function toggleFavorite(track: any) {
     let updated;
     if (favorites.some((fav) => fav.id === track.id)) {
@@ -62,172 +67,185 @@ export default function App() {
     localStorage.setItem("favorites", JSON.stringify(updated));
   }
 
+  // ✔ Normal Şarkı Arama
   const handleSearch = async () => {
     if (!query.trim()) return;
-    const data = await searchSongs(query);
+
+    const token = localStorage.getItem("spotify_token");
+    const data = await searchSongs(query, token);
+
     setResults(data);
   };
 
-  async function handleAIGenerate(prompt: string) {
+  // 🎧 PRO MODE — AI Playlist Generate (DÜZELTİLMİŞ)
+  async function handleGenerate({
+    mood,
+    genre,
+    tempo,
+    artist,
+  }: {
+    mood: string;
+    genre: string;
+    tempo: string;
+    artist: string;
+  }) {
     setLoadingAI(true);
 
-    const response = await fetch("http://localhost:5000/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
+    const prompt = `
+Mood: ${mood}
+Genre: ${genre}
+Tempo: ${tempo} BPM
+Artist vibe: ${artist}
 
-    const data = await response.json();
+Generate a JSON list of 10 songs:
+[
+  { "title": "", "artist": "" }
+   console.log("AI RESULT:", result);
 
-    if (data.tracks) {
-      const songNames = data.tracks.map((t: any) => `${t.name} ${t.artist}`);
-      await searchAIPlaylistSongs(songNames);
+]
+`;
+
+    const result = await generateAIPlaylist(prompt, mood);
+
+    if (result?.songs) {
+      await convertAISongsToSpotify(result.songs);
+    } else {
+      console.error("❌ AI playlist empty:", result);
     }
 
+    setShowAIModal(false);
     setLoadingAI(false);
   }
 
-  async function searchAIPlaylistSongs(aiTracks: string[]) {
-    let finalResults: any[] = [];
+  // 🎧 AI Playlist → Spotify Eşleştirme
+  async function convertAISongsToSpotify(songs: any[]) {
+    console.log("AI'DAN GELEN ŞARKILAR:", songs);
 
-    for (const text of aiTracks) {
-      const results = await searchSongs(text);
-      if (results.length > 0) finalResults.push(results[0]);
+    const token = localStorage.getItem("spotify_token");
+    const finalList: any[] = [];
+
+    for (const item of songs) {
+      const q = `${item.title} ${item.artist}`;
+      console.log("🔍 Spotify'da aranan:", q);
+
+      const found = await searchSongs(q, token);
+
+      if (found && found.length > 0) {
+        finalList.push(found[0]);
+      }
     }
 
-    setResults(finalResults);
+    console.log("🎶 EKRANA BASILACAK SON LİSTE:", finalList);
+    setResults(finalList);
   }
 
   return (
     <ThemeProvider>
       <PlayerProvider>
         <Routes>
-          {/* ANA SAYFA */}
           <Route
             path="/"
             element={
               <div className="min-h-screen relative bg-pastel-gradient dark:bg-gray-900 transition-colors">
-                {/* Neon grid */}
-                <div className="neon-grid"></div>
-
-                {/* Glow blobs */}
-                <div className="glow-blob blob-pink"></div>
-                <div className="glow-blob blob-blue"></div>
-                <div className="glow-blob blob-purple"></div>
-
-                {/* Floating particles */}
-                <div className="particles">
-                  <span
-                    className="particle"
-                    style={{ left: "10%", bottom: "0%" }}
-                  ></span>
-                  <span
-                    className="particle"
-                    style={{ left: "40%", bottom: "-20%" }}
-                  ></span>
-                  <span
-                    className="particle"
-                    style={{ left: "70%", bottom: "-10%" }}
-                  ></span>
-                  <span
-                    className="particle"
-                    style={{ left: "20%", bottom: "-30%" }}
-                  ></span>
-                  <span
-                    className="particle"
-                    style={{ left: "80%", bottom: "-15%" }}
-                  ></span>
-                </div>
-
-                {/* Tema */}
-                <div className="w-full flex justify-end p-4 relative z-10">
+                <div className="w-full flex justify-end p-4 z-10">
                   <ThemeToggle />
                 </div>
 
-                {/* ⭐ FAVORİLER BUTONU (CAM EFEKT + NEON MOR) */}
-                <div className="w-full flex justify-center mb-6 relative z-10">
+                <div className="w-full flex justify-center mb-4 z-10">
                   <button
                     onClick={() => navigate("/favorites")}
-                    className="
-      px-5 py-2 rounded-2xl font-semibold
-      text-white shadow-xl backdrop-blur-xl
-      bg-purple-500/40 dark:bg-purple-500/30
-      border border-purple-300/40 dark:border-purple-400/30
-      hover:bg-purple-500/60 hover:scale-105
-      transition-all duration-300
-    "
+                    className="px-5 py-2 rounded-2xl font-semibold text-white shadow-xl 
+                    bg-purple-500/40 hover:bg-purple-500/60 border border-purple-300/40 hover:scale-105 transition"
                   >
                     ⭐ Favoriler
                   </button>
                 </div>
 
-                {/* AI Modal */}
                 {showAIModal && (
                   <AIPlaylistModal
                     onClose={() => setShowAIModal(false)}
-                    onGenerate={(prompt: string) => {
-                      handleAIGenerate(prompt);
-                      setShowAIModal(false);
+                    onGenerate={handleGenerate}
+                  />
+                )}
+
+                {showCoverModal && (
+                  <AICoverModal
+                    onClose={() => setShowCoverModal(false)}
+                    onGenerate={(style, theme) => {
+                      console.log("Cover generated:", style, theme);
+                      setShowCoverModal(false);
                     }}
                   />
                 )}
 
-                {/* Başlık */}
-                <div className="flex flex-col items-center text-center px-6 relative z-10">
-                  <h1 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-2">
-                    🎵 AI Playlist — Spotify Arama
+                <HomeGlassPanel>
+                  <h1
+                    className="text-3xl font-extrabold text-center mb-4 
+                    bg-gradient-to-r from-pink-300 to-purple-400 
+                    bg-clip-text text-transparent"
+                  >
+                    🎧 AI Playlist Generator
                   </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-                    Token Durumu: <strong>{tokenStatus}</strong>
+
+                  <p className="text-center text-gray-700 dark:text-gray-300 mb-8">
+                    Spotify AI Music Experience · Token:{" "}
+                    <strong>{tokenStatus}</strong>
                   </p>
-                </div>
 
-                {/* Arama alanı */}
-                <div className="flex justify-center gap-3 mb-8 relative z-10">
-                  <input
-                    type="text"
-                    placeholder="Şarkı ara..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="px-4 py-2 rounded-xl border border-gray-300 
-                               dark:bg-gray-800 dark:text-gray-100 w-64"
-                  />
+                  <div className="flex justify-center gap-3 mb-6">
+                    <input
+                      type="text"
+                      placeholder="Şarkı ara..."
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="px-4 py-2 rounded-xl border w-64
+                      bg-white/60 dark:bg-gray-700/60 backdrop-blur
+                      text-gray-900 dark:text-gray-100"
+                    />
 
-                  <button
-                    onClick={handleSearch}
-                    className="px-6 py-2 rounded-xl text-white font-semibold shadow 
-                               bg-gradient-to-r from-pink-300 to-purple-400 hover:scale-105 transition"
-                  >
-                    Ara 🔍
-                  </button>
-                </div>
+                    <button
+                      onClick={handleSearch}
+                      className="px-6 py-2 rounded-xl text-white font-semibold shadow 
+                      bg-gradient-to-r from-pink-400 to-purple-500 
+                      hover:scale-105 transition"
+                    >
+                      Ara 🔍
+                    </button>
+                  </div>
 
-                {/* AI playlist */}
-                <div className="flex justify-center mt-4 relative z-10">
-                  <button
-                    onClick={() => setShowAIModal(true)}
-                    className="px-6 py-2 rounded-xl text-white font-semibold shadow 
-                               bg-gradient-to-r from-purple-400 to-blue-500 hover:scale-105 transition"
-                  >
-                    🎧 AI Playlist Oluştur
-                  </button>
-                </div>
+                  <div className="flex justify-center mt-4">
+                    <button
+                      onClick={() => setShowAIModal(true)}
+                      className="px-6 py-3 rounded-xl text-white font-bold shadow-lg 
+                      bg-gradient-to-r from-purple-500 to-blue-500 
+                      hover:scale-110 hover:shadow-2xl transition-all"
+                    >
+                      🚀 AI Playlist Oluştur
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center mt-2">
+                    <button
+                      onClick={() => setShowCoverModal(true)}
+                      className="px-6 py-2 rounded-xl font-semibold text-white shadow-lg 
+                      bg-gradient-to-r from-blue-500 to-purple-600 
+                      hover:scale-105 transition"
+                    >
+                      🖼️ Playlist Cover Oluştur
+                    </button>
+                  </div>
+                </HomeGlassPanel>
 
                 {loadingAI && (
-                  <div className="text-center mb-4 relative z-10">
-                    <p className="text-purple-500 dark:text-purple-300 font-semibold">
+                  <div className="text-center mt-8 z-10">
+                    <p className="text-purple-500 font-semibold">
                       🤖 AI playlist oluşturuluyor...
                     </p>
                     <WaveAnimation />
                   </div>
                 )}
 
-                {/* Sonuçlar */}
-                <div
-                  id="results"
-                  className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 
-                             gap-6 px-6 pb-20 relative z-10"
-                >
+                <div className="w-full max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-20 mt-10 z-10">
                   {loadingAI && results.length === 0 && (
                     <>
                       <SkeletonCard />
@@ -246,7 +264,6 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* PLAYER (modal kontrolü EKLİ) */}
                 <MiniPlayer onOpenModal={() => setFullPlayerOpen(true)} />
                 <FullPlayerModal
                   isOpen={fullPlayerOpen}
@@ -256,7 +273,6 @@ export default function App() {
             }
           />
 
-          {/* FAVORİLER SAYFASI */}
           <Route
             path="/favorites"
             element={

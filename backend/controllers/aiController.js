@@ -1,56 +1,65 @@
+// backend/controllers/aiController.js
+
 import OpenAI from "openai";
 
-const client = new OpenAI({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 export const generatePlaylist = async (req, res) => {
+  console.log("📌 Gelen BODY:", req.body);
+
+  const { mood, genre, tempo, artist } = req.body;
+
+  if (!mood) {
+    return res.status(400).json({ error: "Mood is required" });
+  }
+
   try {
-    const { prompt } = req.body;
+    const fullPrompt = `
+You are an advanced AI music expert.
+Create a playlist of 10 Spotify songs based on:
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: `
-Kullanıcı: "${prompt}"
+Mood: ${mood}
+Genre: ${genre}
+Tempo: ${tempo}
+Artist Vibe: ${artist}
 
-Sadece tam geçerli JSON ver.
-5 adet şarkı öner. Format:
-
+Rules:
+- All songs MUST exist on Spotify
+- Mix popular + underground tracks
+- Follow the vibe closely
+- Return ONLY PURE JSON array:
 [
-  { "name": "Şarkı adı", "artist": "Sanatçı" }
+  { "title": "Song Name", "artist": "Artist Name" }
 ]
+`;
 
-Kod bloğu, açıklama, yorum, markdown kullanma.
-          `,
-        },
-      ],
+    // 🔥 DÜZELTİLMİŞ OPENAI İSTEĞİ
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: fullPrompt }],
+      temperature: 0.7,
     });
 
-    let text = completion.choices[0].message.content.trim();
-    console.log("AI cevabı (ham):", text);
+    const raw = completion.choices[0].message.content;
+    console.log("RAW AI RESPONSE:", raw);
 
-    // ---- JSON Temizleyici ----
-    // Kod bloklarını temizle
-    text = text.replace(/```json/gi, "").replace(/```/g, "");
+    let songs = [];
 
-    // JSON dışı açıklama kaldır
-    const firstBracket = text.indexOf("[");
-    const lastBracket = text.lastIndexOf("]");
-
-    if (firstBracket === -1 || lastBracket === -1) {
-      throw new Error("Geçersiz JSON formatı");
+    try {
+      songs = JSON.parse(raw);
+    } catch (err) {
+      return res.json({
+        error: "JSON parse error",
+        raw,
+      });
     }
 
-    text = text.slice(firstBracket, lastBracket + 1);
-
-    const tracks = JSON.parse(text);
-
-    return res.json({ tracks });
+    return res.json({ songs });
   } catch (error) {
-    console.error("AI Playlist Hatası:", error);
-    return res.status(500).json({ error: "AI playlist oluşturulamadı" });
+    console.error("AI Playlist Error:", error);
+    res.status(500).json({ error: "AI playlist error" });
   }
 };
+console.log("🔥 FINAL BACKEND JSON RETURN:", jsonResponse);

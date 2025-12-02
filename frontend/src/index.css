@@ -181,3 +181,27 @@
     filter: hue-rotate(0deg);
   }
 }
+
+
+.mood-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.mood-btn {
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: #222;
+  color: #fff;
+  cursor: pointer;
+  transition: 0.2s;
+  border: 1px solid #333;
+}
+
+.mood-btn.active,
+.mood-btn:hover {
+  background: #ff00bb;
+  color: black;
+}

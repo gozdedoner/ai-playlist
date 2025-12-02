@@ -15,5 +15,6 @@ app.use(express.json());
 app.use("/api/token", tokenRoute);
 app.use("/api/ai", aiRoute);
 
-// ❗ Vercel serverless — app.listen YOK!
-export default app;
+app.listen(process.env.PORT, () => {
+  console.log("Backend çalışıyor:", process.env.PORT);
+});
