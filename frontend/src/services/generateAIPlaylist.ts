@@ -1,33 +1,26 @@
-export async function generateAIPlaylist(prompt: string, mood: string) {
+export async function generateAIPlaylist(
+  mood: string,
+  genre: string,
+  tempo: string,
+  artist: string
+) {
   try {
     const response = await fetch("http://localhost:5000/api/ai/playlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, mood }),
+      body: JSON.stringify({ mood, genre, tempo, artist }),
     });
 
     const data = await response.json();
 
-    if (!data.raw) {
-      console.error("❌ Backend 'raw' göndermedi:", data);
+    console.log("🎧 Backend AI Playlist Response:", data);
+
+    if (!data.success) {
+      console.error("❌ Backend AI Error:", data);
       return { songs: [] };
     }
 
-    // Kod bloğu işaretlerini temizle
-    let clean = data.raw
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-
-    let songs = [];
-
-    try {
-      songs = JSON.parse(clean);
-    } catch (e) {
-      console.error("❌ JSON parse error:", e, clean);
-    }
-
-    return { songs };
+    return { songs: data.songs };
   } catch (error) {
     console.error("AI playlist fetch error:", error);
     return { songs: [] };

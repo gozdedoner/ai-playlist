@@ -29,37 +29,50 @@ Rules:
 - All songs MUST exist on Spotify
 - Mix popular + underground tracks
 - Follow the vibe closely
-- Return ONLY PURE JSON array:
+- Return ONLY pure JSON array. NO explanations, NO backticks, NO code block.
+Like this:
 [
   { "title": "Song Name", "artist": "Artist Name" }
 ]
 `;
 
-    // 🔥 DÜZELTİLMİŞ OPENAI İSTEĞİ
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: fullPrompt }],
       temperature: 0.7,
     });
 
-    const raw = completion.choices[0].message.content;
-    console.log("RAW AI RESPONSE:", raw);
+    let raw = completion.choices[0].message.content;
+    console.log("🔍 RAW AI RESPONSE:", raw);
+
+    // ⭐ Kod blok işaretlerini temizle
+    raw = raw
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     let songs = [];
 
     try {
       songs = JSON.parse(raw);
     } catch (err) {
+      console.error("❌ JSON Parse Error:", err);
       return res.json({
-        error: "JSON parse error",
+        success: false,
+        error: "JSON parse failed",
         raw,
       });
     }
 
-    return res.json({ songs });
+    return res.json({
+      success: true,
+      songs,
+    });
   } catch (error) {
-    console.error("AI Playlist Error:", error);
-    res.status(500).json({ error: "AI playlist error" });
+    console.error("🔥 AI Playlist Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "AI playlist error",
+    });
   }
 };
-console.log("🔥 FINAL BACKEND JSON RETURN:", jsonResponse);
